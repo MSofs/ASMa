@@ -1,3 +1,5 @@
+import jade.core.AID;
+
 public class Position implements java.io.Serializable {
 
     private int x,y;
