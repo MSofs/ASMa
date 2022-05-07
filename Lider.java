@@ -200,3 +200,6 @@ public class Lider extends Agent {
         }
     }
 }
+
+//FALTA RECEBER A MENSAGEM DO ARBITRO PARA RETIRAR O AGENTE QUE MORREU DO TIPO REQUEST
+
