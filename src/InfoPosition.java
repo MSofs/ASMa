@@ -9,6 +9,7 @@ public class InfoPosition implements java.io.Serializable {
         public InfoPosition(AID agent, Position position) {
             super();
             this.agent = agent;
+            this.position = position;
 
         }
 
@@ -34,6 +35,13 @@ public class InfoPosition implements java.io.Serializable {
             this.position = position;
         }
 
+        public void setPositionX(int x) {
+            this.position.setX(x);
+        }
+
+        public void setPositionY(int y) {
+            this.position.setY(y);
+        }
 
         @Override
         public String toString() {
