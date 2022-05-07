@@ -127,7 +127,7 @@ public class Arbitro extends Agent {
             int xa, ya, xb , yb;
 
 
-
+//########          DESCOBRIR OS INIMIGOS DA EQUIPA A   #####################
             for (InfoPosition i : pos_jogadoresA) {
                 Map<Position, Double> mapPosInimigos = new HashMap<>();
                 xa = i.getPosition().getX();
@@ -150,13 +150,52 @@ public class Arbitro extends Agent {
 
                         Double dist  = Math.sqrt((yb - ya) * (yb - ya) + (xb - xa) * (xb - xa));
                         mapPosInimigos.put(j.getPosition(),dist);
-
                     }
                 }
+
+
+                Position canSupEsq = new Position(1,1);
+                Position canSupDir = new Position(1,35);
+                Position canInfEsq = new Position(35,1);
+                Position canInfDir = new Position(35,35);
+
+//                || (i.getPosition() == canSupEsq) ||(i.getPosition() == canInfDir) ||(i.getPosition() == canInfEsq
+                if (mapPosInimigos.size()>=2){
+                    if ((i.getPosition() == canSupDir)){
+                       if (mapPosInimigos.containsKey(new Position(1,34)) && mapPosInimigos.containsKey(new Position(2,35))) {
+                           pos_jogadoresA.remove(i);
+                           ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
+                           try {
+                               msg.setContentObject(i.getAgent());
+                           } catch (IOException e) {
+                               throw new RuntimeException(e);
+                           }
+                       }
+
+
+                    }
+
+                }
+
+
                 System.out.println("INIMIGO" + mapPosInimigos + "\n\n\n\n\n");
                 InfoInimigo info = new InfoInimigo(i.getAgent(), mapPosInimigos);
+
+
+
+
                 //mandar esta mensagem ao lider
             }
+
+            //################# AGENTE MORTO?  ################################
+
+
+
+
+
+
+
+
 
             try {
                 Thread.sleep(100);
@@ -165,6 +204,10 @@ public class Arbitro extends Agent {
             }
         }
     }
+
+
+
+
 
 
 
