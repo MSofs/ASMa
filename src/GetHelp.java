@@ -1,66 +1,202 @@
+import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.TickerBehaviour;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.UnreadableException;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 
-import jade.core.AID;
+public class Lider extends Agent {
 
-public class GetHelp implements java.io.Serializable{
+    private ArrayList<InfoPosition> player_position = new ArrayList<InfoPosition>();
+    private ArrayList<InfoPosition> enemy_position = new ArrayList<InfoPosition>();
 
-    private InfoPosition p;
-    private ArrayList<Position> enemy_pos;
+    protected void setup() {
+        super.setup();
 
-    public GetHelp(InfoPosition i,ArrayList<Position> enemy_p ) {
-        super();
-        this.p = i;
-        this.enemy_pos = enemy_p;
-    }
-
-    public double calcularDis(Position p1, Position p2) {
-        return Math.sqrt((p2.getY() - p1.getY()) * (p2.getY() - p1.getY()) + (p2.getX() - p1.getX()) * (p2.getX() - p1.getX()));
-    }
-
-    public ArrayList<Double> getEnemyDis(){
-        ArrayList<Double> lista = new ArrayList<>();
-        for(Position po : enemy_pos){
-            double dist = calcularDis(this.p.getPosition(),po);
-            lista.add(dist);
+        Object [] obj = getArguments();
+        if(obj[0].equals("EquipaA")){
+            DFAgentDescription dfd = new DFAgentDescription();
+            dfd.setName(getAID());
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("EquipaA");
+            sd.setName(getLocalName());
+            dfd.addServices(sd);
+            try {
+                DFService.register(this, dfd);
+            }catch (FIPAException e) {
+            e.printStackTrace();
         }
-    return lista;
-    }
-
-    public AID getAgent() {
-        return p.getAgent();
-    }
-
-    public void setAgent(AID agent) {
-        this.p.setAgent(agent);
-    }
-
-    public Position getPos() {
-        return p.getPosition();
-    }
-
-    public void setPos(Position init) {
-        this.p.setPosition(init);
-    }
-
-    public ArrayList<Position> getEnemyP() {
-        ArrayList<Position> lista = new ArrayList<>();
-        for (Position p : enemy_pos){
-            lista.add(p);
+        }else{
+            DFAgentDescription dfd2 = new DFAgentDescription();
+            dfd2.setName(getAID());
+            ServiceDescription sd2 = new ServiceDescription();
+            sd2.setType("EquipaB");
+            sd2.setName(getLocalName());
+            dfd2.addServices(sd2);
+            try {
+                DFService.register(this, dfd2);
+            } catch (FIPAException e) {
+                e.printStackTrace();
+            }
         }
-        return lista;
+
+        this.addBehaviour(new Register_Equipa());
+        this.addBehaviour(new Receiver());
+        this.addBehaviour(new update_Equipa(this,10000));
+
     }
 
+    protected void takeDown() {
 
-    public int getNrEnemys() {
-        return this.enemy_pos.size();
+        try {
+            DFService.deregister(this);
+        } catch (FIPAException e) {
+            e.printStackTrace();
+        }
+        super.takeDown();
+
     }
 
-    @Override
-    public String toString() {
-        return "HelpRequest [agent=" + getAgent() + ", pos=" + getPos() + ", nr_enemys=" + getNrEnemys() + ", pos_inimigos="+ getEnemyP() +"]";
+    private class Register_Equipa extends OneShotBehaviour {
+        public void action() {
+
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("Arbitro");
+            template.addServices(sd);
+
+            try {
+                DFAgentDescription[] result = DFService.search(myAgent, template);
+
+                // If Lider is available!
+                if (result.length > 0) {
+
+                    InfoEquipa info =  new InfoEquipa(myAgent.getAID(),player_position);
+
+                    ACLMessage msg = new ACLMessage(ACLMessage.SUBSCRIBE);
+                    msg.setContentObject(info);
+
+                    for (DFAgentDescription dfAgentDescription : result) {
+                        msg.addReceiver(dfAgentDescription.getName());
+                    }
+
+                    myAgent.send(msg);
+                }
+                // No Lider is available - kill the agent!
+                else {
+                    System.out.println(myAgent.getAID().getLocalName() + ": No Lider available. Agent offline");
+                }
+
+            } catch (IOException | FIPAException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
     }
 
+    private class update_Equipa extends TickerBehaviour {
+
+        public update_Equipa(Agent a, long period) {
+            super(a, period);
+        }
+
+        protected void onTick() {
 
 
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("Arbitro");
+            template.addServices(sd);
+
+            try {
+                DFAgentDescription[] result = DFService.search(myAgent, template);
+
+                // If Arbitro is available!
+                if (result.length > 0) {
+                    Object[] p = getArguments();
+
+                    ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+                    InfoEquipa e = new InfoEquipa(myAgent.getAID(),player_position);
+                    msg.setContentObject(e);
+
+                    for (DFAgentDescription dfAgentDescription : result) {
+                        msg.addReceiver(dfAgentDescription.getName());
+                    }
+
+                    myAgent.send(msg);
+                }
+                // No Lider is available - kill the agent!
+                else {
+                    System.out.println(myAgent.getAID().getLocalName() + ": No Arbitro available. Agent offline");
+                }
+
+            } catch (IOException | FIPAException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private class Receiver extends CyclicBehaviour {
+
+        public void action() {
+            ACLMessage msg = receive();
+            if (msg != null) {
+
+                if (msg.getPerformative() == ACLMessage.SUBSCRIBE) {
+
+                    try {
+                        InfoPosition content = (InfoPosition) msg.getContentObject();
+                        player_position.add(content);
+
+                        System.out.println(myAgent.getAID().getLocalName() + ": " + msg.getSender().getLocalName()
+                                + " registered, " + content.getPosition() + "!");
+
+                    } catch (UnreadableException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+
+                if ((msg.getPerformative() == ACLMessage.INFORM) && (!msg.getSender().getLocalName().equals("Arbitro"))){
+                    try {
+                        InfoPosition content = (InfoPosition) msg.getContentObject();
+
+                        for(InfoPosition i : player_position){
+                            int index = player_position.indexOf(i);
+                            if(i.getAgent().toString().equals(content.getAgent().toString()))
+                                player_position.set(index,content);
+                        }
+
+                        System.out.println(myAgent.getAID().getLocalName() + ": " + msg.getSender().getLocalName()
+                                + " new position: " + content.getPosition() + "!");
+
+                    } catch (UnreadableException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+
+                    if ((msg.getPerformative() == ACLMessage.INFORM) && (msg.getSender().getLocalName().equals("Arbitro"))){
+                        try {
+                            InfoPosition content = (InfoPosition) msg.getContentObject();
+                            //receber mensagem do arbitro com as posiçoes de cada jogador
+
+                        } catch (UnreadableException e){
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
